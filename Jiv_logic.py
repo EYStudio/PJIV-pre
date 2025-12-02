@@ -1,3 +1,4 @@
+import ctypes
 import subprocess
 import win32gui, win32con
 
@@ -5,6 +6,13 @@ import win32gui, win32con
 class JIVLogic:
     def __init__(self):
         pass
+
+    @staticmethod
+    def is_admin():
+        """Checking whether programme has administrator privilege"""
+
+        authority = ctypes.windll.shell32.IsUserAnAdmin()
+        return bool(authority)
 
     @staticmethod
     def get_studentmain_state():
