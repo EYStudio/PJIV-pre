@@ -1,8 +1,6 @@
 # adapter.py
 # from threading import Thread
 
-# from typing import Protocol
-
 from PySide6.QtCore import QObject, Signal, QTimer, QThread
 
 
@@ -14,8 +12,6 @@ class AdapterManager(QObject):
         self.logic = logic
         self.gui = gui
         self.workers = []
-        # self.workers: list[BaseAdapterProtocol] = []
-        # self.threads: dict[BaseAdapterProtocol, QThread] = {}
 
         self.threads = {}
 
@@ -27,21 +23,6 @@ class AdapterManager(QObject):
         # self.workers.append(TopMostAdapter(100, self.gui))
         # self.workers.append(DatabaseAdapter(logic, 2000))
         # self.workers.append(NetworkAdapter(logic, 5000))
-
-    # def start_workers(self):
-    #
-    #     for worker in self.workers:
-    #         thread = QThread()
-    #
-    #         worker.moveToThread(thread)
-    #
-    #         thread.started.connect(worker.start)
-    #         worker.stateReady.connect(self.signal)
-    #
-    #         self.threads.append(thread)
-    #
-    #         thread.start()
-    #         worker.start()
 
     def start_all(self):
         for worker in self.workers:
@@ -75,14 +56,6 @@ class BaseAdapterInterface:
         raise NotImplementedError("Subclasses must implement run_task()")
 
 
-# class BaseAdapterProtocol(Protocol):
-#     def start(self) -> None: ...
-#
-#     def stop(self) -> None: ...
-#
-#     def run_task(self) -> None: ...
-
-
 # class BaseAdapterInterface(ABC):
 #     @abstractmethod
 #     def start(self):
@@ -95,26 +68,6 @@ class BaseAdapterInterface:
 #     @abstractmethod
 #     def run_task(self):
 #         raise NotImplementedError("Subclasses must implement run_task()")
-
-
-# class MonitorAdapter(QObject):
-#     stateReady = Signal(bool)
-#
-#     def __init__(self, logic):
-#         super().__init__()
-#         self.thread = QThread()
-#         self.worker = MonitorAdapter(logic, 1000)
-#         self.worker.moveToThread(self.thread)
-#
-#         self.thread.started.connect(self.worker.start)
-#         self.worker.stateReady.connect(self.stateReady)
-#
-#         self.thread.start()
-#
-#     def stop(self):
-#         self.worker.stop()
-#         self.thread.quit()
-#         self.thread.wait()
 
 
 class MonitorAdapter(QObject, BaseAdapterInterface):
