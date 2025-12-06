@@ -10,7 +10,7 @@ import Jiv_service
 
 class JIVMain:
     def __init__(self):
-        app = QApplication(sys.argv)
+        self.app = QApplication(sys.argv)
 
         self.logic = Jiv_logic.JIVLogic()
         self.gui = Jiv_gui.MainWindow()
@@ -23,7 +23,9 @@ class JIVMain:
 
         self.gui.close_event.connect(self.handle_close_event)
 
-        sys.exit(app.exec())
+        # self.app.aboutToQuit.connect(self.handle_close_event)
+
+        sys.exit(self.app.exec())
 
     def handle_close_event(self):
         self.adapters.stop_all()
