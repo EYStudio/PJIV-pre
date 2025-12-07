@@ -1,29 +1,65 @@
 import ctypes
+import os
 import platform
 import re
-import sys
-
-import requests
-import win32com.client
-from packaging import version
 # import ctypes.wintypes as wintypes
 import subprocess
+import sys
+import time
+import winreg
 
 import psutil
-import win32gui, win32con, win32api
+import pywintypes
+import requests
+import win32api
+import win32com.client
+import win32con
+import win32gui
+import win32process
+from packaging import version
 
 
 class JIVLogic:
-    def __init__(self):
+    def __init__(self, config):
+        self.authority_admin = None
         self.system_info = None
+        self.studentmain_directory = None
+        self.studentmain_path = None
+        self.config = config
 
         self.preparation()
 
-
-
     def preparation(self):
-        self.system_info = self.get_system_info()
+        self.authority_admin = self.is_admin()
+        if not self.authority_admin:
+            if self.privilege_escalation():
+                time.sleep(3)
+                sys.exit()
+            else:
+                print("Run without admin")
+        else:
+            print('Run as admin')
 
+        self.system_info = self.get_system_info()
+        key_path = r"SOFTWARE\TopDomain\e-Learning Class Standard\1.00"
+        value_name = "TargetDirectory"
+        self.studentmain_directory = self.read_registry_value(key_path, value_name)
+        self.studentmain_path = os.path.join(self.studentmain_directory, "studentmain.exe")
+        print(self.studentmain_path)
+
+    @staticmethod
+    def is_admin():
+        """Checking whether programme has administrator privilege"""
+
+        authority = ctypes.windll.shell32.IsUserAnAdmin()
+        return bool(authority)
+
+    @staticmethod
+    def privilege_escalation():
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None, 'runas', sys.executable, ' '.join(sys.argv), None, 1
+        )
+        return result > 32
 
     def get_system_info(self):
         win_ver = sys.getwindowsversion()
@@ -76,11 +112,31 @@ class JIVLogic:
         return hotfixes
 
     @staticmethod
-    def is_admin():
-        """Checking whether programme has administrator privilege"""
+    def read_registry_value(key_path, value_name):
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0,
+                                winreg.KEY_READ | winreg.KEY_WOW64_32KEY) as key:
+                return winreg.QueryValueEx(key, value_name)[0]
+        except FileNotFoundError:
+            pass
 
-        authority = ctypes.windll.shell32.IsUserAnAdmin()
-        return bool(authority)
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0,
+                                winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
+                return winreg.QueryValueEx(key, value_name)[0]
+        except FileNotFoundError:
+            pass
+
+        return None
+
+    def after_ui_launched(self, hwnd):
+        self.set_window_display_affinity(hwnd)
+
+    def set_window_display_affinity(self, hwnd):
+        if self.system_info["major"] >= 10 and self.system_info["build"] >= 19041:
+            ctypes.windll.user32.SetWindowDisplayAffinity(int(hwnd), 0x11)
+        else:
+            ctypes.windll.user32.SetWindowDisplayAffinity(int(hwnd), 0)
 
     @staticmethod
     def get_studentmain_state():
@@ -101,11 +157,16 @@ class JIVLogic:
                               0, 0, 0, 0,
                               win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
-    def set_window_display_affinity(self, hwnd):
-        if self.system_info["major"] >= 10 and self.system_info["build"] >= 19041:
-            ctypes.windll.user32.SetWindowDisplayAffinity(int(hwnd), 0)
-        else:
-            ctypes.windll.user32.SetWindowDisplayAffinity(int(hwnd), 0x11)
+    def start_studentmain(self):
+        if os.path.exists(self.studentmain_path):
+            try:
+                os.startfile(self.studentmain_path)
+                return True
+            except PermissionError as err:
+                print(f"permission error: {err}")
+            except Exception as err:
+                print(f"error: {err}")
+        return False
 
     @staticmethod
     def taskkill(process_name):
@@ -122,7 +183,7 @@ class JIVLogic:
         elif state == 1:
             return False
             # self.logger.warning(
-                # f'The process ({process_name}) could not be terminated (Return code {state})')
+            # f'The process ({process_name}) could not be terminated (Return code {state})')
 
         else:
             return False
@@ -141,6 +202,28 @@ class JIVLogic:
         return None
 
     @staticmethod
+    def get_pid_by_name(process_name):
+        pids = win32process.EnumProcesses()
+        for pid in pids:
+            try:
+                # noinspection PyUnresolvedReferences
+                h_process = win32api.OpenProcess(0x0400 | 0x0010, False, pid)  # QUERY_INFORMATION | VM_READ
+                exe_name = win32process.GetModuleFileNameEx(h_process, 0)
+                if exe_name.lower().endswith(process_name.lower()):
+                    return pid
+            except pywintypes.error as err: # type: ignore
+                # Insufficient permissions, permission denied or the process has exited
+                print(f"pywintypes.error for PID {pid}: {err}")
+                continue
+            except OSError as err:
+                print(f"OSError for PID {pid}: {err}")
+                continue
+            except Exception as err:
+                print(f"Unexpected error for PID {pid}: {err}")
+                continue
+            return None
+
+    @staticmethod
     def terminate_process(pid):
 
         # noinspection PyUnresolvedReferences
@@ -150,10 +233,10 @@ class JIVLogic:
             raise Exception(f"OpenProcess failed, error={win32api.GetLastError()}")
 
         # noinspection PyUnresolvedReferences
-        win32api.TerminateProcess(h_process, 1) # return code 1
+        win32api.TerminateProcess(h_process, 1)  # return code 1
         # if not success:
-            # noinspection PyUnresolvedReferences
-            # raise Exception(f"TerminateProcess failed, error={win32api.GetLastError()}")
+        # noinspection PyUnresolvedReferences
+        # raise Exception(f"TerminateProcess failed, error={win32api.GetLastError()}")
 
         # h_process = win32api.OpenProcess(win32con.PROCESS_TERMINATE | win32con.SYNCHRONIZE, False, pid)
         # if not h_process:
@@ -169,7 +252,6 @@ class JIVLogic:
         #     print(f"Process terminated with exit code {exit_code}")
         # else:
         #     print("Timeout waiting for process to terminate")
-
 
     # # load kernel32.dll
     # kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -229,4 +311,37 @@ class JIVLogic:
     # else:
     #     print("cannot open process")
 
+    def get_current_version(self):
+        return self.config.VERSION
+
+    def get_latest_version(self):
+        response = requests.get(self.config.UPDATE_URL)
+        if response.status_code == 200:
+            data = response.json()
+            tag = data.get("tag_name")  # Avoiding KeyError
+            if tag:
+                return tag.lstrip("v")
+            else:
+                return "0.0"
+
+        else:
+            raise Exception("Unable to obtain the latest version information")
+
+        # tags_resp = requests.get(tags_url)
+        # if tags_resp.status_code == 200:
+        #     tags_data = tags_resp.json()
+        #     if tags_data:
+        #         return tags_data[0]["name"].lstrip("v")
+        # raise Exception("No release or tag")
+
+    def check_update(self):
+        """Is latest version"""
+        current = version.parse(self.get_current_version())
+        latest = version.parse(self.get_latest_version())
+
+        return latest > current
+
+
+# self.floatwin.setText(
+#     f"窗口标题：{GetWindowText(hwnd)}\n窗口类名：{GetClassName(hwnd)}\n窗口位置：{str(GetWindowRect(hwnd))}\n窗口句柄：{int(hwnd)}\n窗口进程：{procname}")
 
