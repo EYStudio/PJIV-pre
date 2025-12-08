@@ -330,6 +330,20 @@ class JIVLogic:
             return False
         except PermissionError:
             print('Permission Error in suspending')
+            return False
+
+    @staticmethod
+    def resume_process(pid):
+        try:
+            p = psutil.Process(pid)
+            p.resume()
+            return True
+        except psutil.NoSuchProcess:
+            print("Process not found")
+            return False
+        except PermissionError:
+            print('Permission Error in resuming')
+            return False
 
     def get_current_version(self):
         return self.config.VERSION
