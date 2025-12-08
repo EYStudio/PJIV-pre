@@ -319,6 +319,18 @@ class JIVLogic:
         except psutil.NoSuchProcess:
             return False
 
+    @staticmethod
+    def suspend_process(pid):
+        try:
+            p = psutil.Process(pid)
+            p.suspend()
+            return True
+        except psutil.NoSuchProcess:
+            print("Process not found")
+            return False
+        except PermissionError:
+            print('Permission Error in suspending')
+
     def get_current_version(self):
         return self.config.VERSION
 
