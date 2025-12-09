@@ -90,7 +90,7 @@ class MonitorAdapter(QObject, BaseAdapterInterface):
         super().__init__()
         self.logic = logic
         self.timer = QTimer(self)
-        self.timer.setInterval(1000)
+        self.timer.setInterval(750)
         self.timer.timeout.connect(self.run_task)
         self.last_result = None
 
@@ -109,6 +109,41 @@ class MonitorAdapter(QObject, BaseAdapterInterface):
 
     def check_state(self):
         return self.logic.get_studentmain_state()
+
+
+class SuspendMonitorAdapter(QObject, BaseAdapterInterface):
+    changed = Signal(bool)
+
+    def __init__(self, logic):
+        super().__init__()
+        self.logic = logic
+        self.timer = QTimer(self)
+        self.timer.setInterval(750)
+        self.timer.timeout.connect(self.run_task)
+        self.last_result = None
+
+    def start(self):
+        self.timer.start()
+        # QTimer.singleShot(0, self.check_state)
+
+    def stop(self):
+        self.timer.stop()
+
+    def run_task(self):
+        state = self.check_state()
+        if state is not self.last_result:
+            self.last_result = state
+            self.changed.emit(state)
+
+    def check_state(self) -> bool or None:
+        """
+        :return: Bool, None
+        """
+        pid = self.logic.get_pid_form_process_name('studentmain.exe')
+        if pid is None:
+            print('studentmain not found')
+            return None
+        return self.logic.is_suspended(pid)
 
 # class UpdateAdapter(QObject, BaseAdapterInterface):
 #     changed = Signal(str)
@@ -151,5 +186,3 @@ class StartStudentmainAdapter:
 
     def start(self):
         return self.logic.start_studentmain()
-
-
