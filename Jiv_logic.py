@@ -15,6 +15,7 @@ import win32api
 import win32com.client
 import win32con
 import win32gui
+import win32gui_struct
 import win32process
 from packaging import version
 
@@ -39,6 +40,7 @@ class JIVLogic:
                 print("Run without admin")
         else:
             print('Run as admin')
+        self.check_update()
 
         self.system_info = self.get_system_info()
         key_path = r"SOFTWARE\TopDomain\e-Learning Class Standard\1.00"
@@ -418,6 +420,14 @@ class JIVLogic:
 
         return latest > current
 
+    @staticmethod
+    def find_window(class_name=None, window_name=None):
+        if not class_name and not window_name:
+            raise ValueError("Must provide class_name or window_name")
+        hwnd = win32gui.FindWindow(class_name, window_name)
+        if hwnd == 0:
+            raise RuntimeError("Window not found")
+        return hwnd
 
 # self.floatwin.setText(
 #     f"窗口标题：{GetWindowText(hwnd)}\n窗口类名：{GetClassName(hwnd)}\n窗口位置：{str(GetWindowRect(hwnd))}\n窗口句柄：{int(hwnd)}\n窗口进程：{procname}")
