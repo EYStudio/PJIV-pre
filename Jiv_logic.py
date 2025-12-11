@@ -420,6 +420,37 @@ class JIVLogic:
 
         return latest > current
 
+    def topmost_taskmgr(self):
+        taskmgr_name_chs = {
+            "class_name": "TaskManagerWindow",
+            "window_name": "任务管理器",
+        }
+        taskmgr_name_list = [taskmgr_name_chs]
+
+        hwnd = None
+
+        for taskmgr_name in taskmgr_name_list:
+            try:
+                hwnd = self.find_window(taskmgr_name.get("class_name"),
+                                        taskmgr_name.get("window_name")
+                                        )
+                if hwnd: break
+            except RuntimeError:
+                continue
+
+        if self.system_info.get("major") == 10:
+
+            try:
+                hm = win32gui.GetMenu(hwnd)
+                mii,_ = win32gui_struct.EmptyMENUITEMINFO()
+                win32gui.GetMenuItemInfo(hm,0x7704,False,mii)
+                if list(win32gui_struct.UnpackMENUITEMINFO(mii))[1]==0:
+                    win32gui.PostMessage(hwnd,win32con.WM_COMMAND,0x7704,0)
+            except PermissionError as err:
+                print(err)
+        else:
+            self.set_window_top_most(hwnd)
+
     @staticmethod
     def find_window(class_name=None, window_name=None):
         if not class_name and not window_name:
