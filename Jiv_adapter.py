@@ -2,6 +2,8 @@
 # from threading import Thread
 
 from PySide6.QtCore import QObject, Signal, QTimer, QThread
+from PySide6.QtWidgets import QApplication
+
 from Jiv_enmus import SuspendState
 
 
@@ -10,14 +12,14 @@ class AdapterManager(QObject):
 
     def __init__(self, logic, gui):
         super().__init__()
-        self.on_demand_adapters = {}
+        self.on_demand_objects = {}
         self.logic = logic
         self.gui = gui
 
         self.lifelong_adapters = []
-        self.lifelong_threads = {}
+        self.lifelong_objects = {}
 
-        self.terminate_adapter = self.start_adapter = self.suspend_studentmain_adapter = None
+        self.terminate_adapter = self.start_adapter = self.suspend_studentmain_adapter = self.run_taskmgr_adapter = None
 
         self.init_workers()
         self.start_all()
@@ -31,6 +33,7 @@ class AdapterManager(QObject):
         self.terminate_adapter = TerminateAdapter(self.logic)
         self.suspend_studentmain_adapter = SuspendStudentmainAdapter(self.logic)
         self.start_adapter = StartStudentmainAdapter(self.logic)
+        self.run_taskmgr_adapter = RunTaskmgrAdapter(self.logic)
 
     def start_all(self):
         for adapter in self.lifelong_adapters:
@@ -42,16 +45,15 @@ class AdapterManager(QObject):
             adapter.changed.connect(lambda result, w=adapter:
                                     self.ui_change.emit(type(w).__name__, result))
 
-            self.lifelong_threads[adapter] = thread
+            self.lifelong_objects[adapter] = thread
             thread.start()
 
     def stop_all(self):
         """Stop all adapters and safely exit the thread"""
-        for adapter, thread in self.lifelong_threads.items():
+        for adapter, thread in self.lifelong_objects.items():
             adapter.stop()
             thread.quit()
             thread.wait()
-
     def terminate_studentmain(self):
         self.terminate_adapter.start()
 
@@ -112,7 +114,7 @@ class MonitorAdapter(QObject, BaseAdapterInterface):
             self.changed.emit(state)
 
     def check_state(self):
-        return self.logic.get_studentmain_state()
+        return self.logic.get_process_state('studentmain.exe')
 
 
 class SuspendMonitorAdapter(QObject, BaseAdapterInterface):
@@ -184,7 +186,7 @@ class TerminateAdapter:
         self.logic.terminate_process(pid)
 
     def check_state(self):
-        return self.logic.get_studentmain_state()
+        return self.logic.get_process_state('studentmain.exe')
 
 
 class StartStudentmainAdapter:
@@ -219,3 +221,48 @@ class SuspendStudentmainAdapter:
 
     def resume(self, pid):
         self.logic.resume_process(pid)
+
+
+class RunTaskmgrAdapter(QObject):
+    changed = Signal(SuspendState)
+    request_top = Signal()
+    finished = Signal()
+
+    def __init__(self, logic):
+        super().__init__()
+        self.logic = logic
+        self.timer = QTimer(self)
+        self.cnt = 0
+
+    def start(self):
+        self.logic.start_file("taskmgr")
+        print("adapter.start called")
+        # print(1)
+
+        self.timer.setInterval(150)
+        self.timer.timeout.connect(self.is_taskmgr_alive)
+        self.timer.start()
+
+    def is_taskmgr_alive(self):
+        self.cnt += 1
+        if self.logic.get_process_state('taskmgr.exe'):
+
+            self.request_top.emit()
+            self.timer.stop()
+            self.finished.emit()
+        elif self.cnt >= 27:
+            print("Find taskmgr Time out")
+            self.timer.stop()
+            self.finished.emit()
+        # self.cnt += 1
+        # print("tick", self.cnt)
+        # if self.cnt >= 5:
+        #     print("adapter finishing")
+        #     self.timer.stop()
+        #     QTimer.singleShot(0, self.finished.emit)
+
+    # def top_taskmgr(self):
+    #     self.logic.top_taskmgr()
+
+    def stop(self):
+        self.timer.stop()
