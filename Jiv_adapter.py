@@ -35,6 +35,24 @@ class AdapterManager(QObject):
         self.start_adapter = StartStudentmainAdapter(self.logic)
         self.run_taskmgr_adapter = RunTaskmgrAdapter(self.logic)
 
+        self.init_run_taskmgr_adapter()
+
+    def init_run_taskmgr_adapter(self):
+        thread = QThread()
+        self.run_taskmgr_adapter.moveToThread(thread)
+
+        thread.started.connect(self.run_taskmgr_adapter.start)
+
+        self.run_taskmgr_adapter.changed.connect(lambda result, w=self.run_taskmgr_adapter:
+                                                 self.ui_change.emit(type(w).__name__, result))
+        self.run_taskmgr_adapter.request_top.connect(self.logic.top_taskmgr)
+        self.run_taskmgr_adapter.request_top.connect(lambda: print('request_top received'))
+
+        self.lifelong_objects[self.run_taskmgr_adapter] = thread
+        self.on_demand_objects[self.run_taskmgr_adapter] = thread
+
+        thread.start()
+
     def start_all(self):
         for adapter in self.lifelong_adapters:
             thread = QThread()
@@ -62,13 +80,13 @@ class AdapterManager(QObject):
             return self.on_demand_objects.pop(adapter, None)
         # if thread in self.on_demand_objects:
         #     self.on_demand_objects.pop(thread)
-        # adapter.deleteLater() 和 thread.deleteLater() 已经在上面 connect 过了
+        # adapter.deleteLater() and thread.deleteLater()
 
     def cleanup_on_demand(self, adapter, thread):
         self.pop_ondemand_object(adapter)
         adapter.moveToThread(QApplication.instance().thread())
-        adapter.deleteLater()
-        thread.deleteLater()
+        # adapter.deleteLater()
+        # thread.deleteLater()
 
     def terminate_studentmain(self):
         self.terminate_adapter.start()
@@ -97,24 +115,22 @@ class AdapterManager(QObject):
     #     thread.start()
 
     def run_taskmgr(self):
-        adapter = RunTaskmgrAdapter(self.logic)
-        thread = QThread()
-        adapter.moveToThread(thread)
+        print('Topmost taskmgr triggered')
 
-        thread.started.connect(adapter.start)
-        adapter.finished.connect(adapter.stop)
-        adapter.finished.connect(thread.quit)
+        if self.run_taskmgr_adapter.is_running():
+            print("taskmgr adapter already running")
+            return
 
-        adapter.finished.connect(lambda: self.cleanup_on_demand(adapter, thread))
+        # call in different threads, causes issue in slot connection in qtimer
+        # self.run_taskmgr_adapter.run_task()
 
-        adapter.changed.connect(lambda result, w=adapter:
-                                self.ui_change.emit(type(w).__name__, result))
-        adapter.request_top.connect(lambda : print('Topmost taskmgr triggered'))
-        adapter.request_top.connect(self.logic.top_taskmgr)
+        self.run_taskmgr_adapter.trigger_run.emit()
 
-        self.on_demand_objects[adapter] = thread
-
-        thread.start()
+        # QMetaObject.invokeMethod(
+        #     self.run_taskmgr_adapter,
+        #     "run_task",
+        #     Qt.QueuedConnection
+        # )
 
 
 class BaseAdapterInterface:
@@ -276,36 +292,52 @@ class SuspendStudentmainAdapter:
         self.logic.resume_process(pid)
 
 
-class RunTaskmgrAdapter(QObject):
-    changed = Signal(SuspendState)
-    request_top = Signal()
-    finished = Signal()
-
-    def __init__(self, logic):
-        super().__init__()
-        self.logic = logic
-        self.timer = QTimer(self)
-        self.cnt = 0
-
-    def start(self):
-        self.logic.start_file("taskmgr")
-        print("adapter.start called")
-        # print(1)
-
-        self.timer.setInterval(150)
-        self.timer.timeout.connect(self.is_taskmgr_alive)
-        self.timer.start()
-
-    def is_taskmgr_alive(self):
-        self.cnt += 1
-        if self.logic.get_process_state('taskmgr.exe'):
-            self.request_top.emit()
-            self.timer.stop()
-            self.finished.emit()
-        elif self.cnt >= 27:
-            print("Find taskmgr Time out")
-            self.timer.stop()
-            self.finished.emit()
-
-    def stop(self):
-        self.timer.stop()
+# class RunTaskmgrAdapter(QObject):
+#     trigger_run = Signal()
+#     changed = Signal()
+#     request_top = Signal()
+#     finished = Signal()
+#
+#     def __init__(self, logic):
+#         super().__init__()
+#         # self.running = False
+#         # self.cnt = 0
+#         self.running = None
+#         self.cnt = None
+#         self.timer = None
+#         self.logic = logic
+#
+#     def start(self):
+#         self.running = False
+#         self.cnt = 0
+#         self.timer = QTimer(self)
+#
+#         self.timer.setInterval(100)
+#         self.timer.timeout.connect(self.is_taskmgr_alive)
+#
+#         self.trigger_run.connect(self.run_task)
+#
+#     def run_task(self):
+#         self.cnt = 0
+#         self.running = True
+#         self.logic.start_file("taskmgr")
+#         print("adapter.start called")
+#         self.timer.start()
+#         print('timer started')
+#
+#     def is_taskmgr_alive(self):
+#         print(f'cnt: {self.cnt}')
+#         self.cnt += 1
+#         if self.logic.get_process_state('taskmgr.exe'):
+#             self.request_top.emit()
+#             self.stop()
+#         if self.cnt >= 30: # 3s time out
+#             print("Find taskmgr Time out")
+#             self.stop()
+#
+#     def stop(self):
+#         self.running = False
+#         self.timer.stop()
+#
+#     def is_running(self):
+#         return self.running
