@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QMainWindow, QWidget, QLabel, QPushButton, QGridLayout, QVBoxLayout
+from PySide6.QtWidgets import QMainWindow, QWidget, QLabel, QPushButton, QGridLayout, QVBoxLayout, QHBoxLayout
 
 from Jiv_enmus import SuspendState
 
@@ -32,8 +32,21 @@ class MainWindow(QMainWindow):
         self.adapter = adapter
         self.main_widget.adapter_signal_connect(adapter)
 
+class MainWidgetTemp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.BTN_HEIGHT = 32
+        self.BTN_WIDTH = int(self.BTN_HEIGHT * 2)
+        self.SPACING = 4
 
-class MainWidget(QWidget):
+        self.SIDEBAR_HEIGHT = self.BTN_HEIGHT + self.SPACING * 2  # Fixed height
+
+        self.sidebar = self.sidebar_layout = None
+        self.tabs = self.button_group = None
+        self.pages = None
+
+
+class ToolkitPage(QWidget):
     def __init__(self):
         super().__init__()
         self.studentmain_state = None
