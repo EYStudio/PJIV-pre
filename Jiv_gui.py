@@ -87,6 +87,33 @@ class MainWidgetTemp(QWidget):
             }}
         """
 
+        container = QWidget()
+        container_layout = QHBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(self.SPACING)
+
+        container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        container_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+
+        for i, name in enumerate(self.tabs):
+            btn = QPushButton(name)
+            btn.setFixedSize(self.BTN_WIDTH, self.BTN_HEIGHT)
+            btn.setCheckable(True)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(base_btn_style)
+            btn.setToolTip(name)
+            self.button_group.addButton(btn, i)
+            container_layout.addWidget(btn)
+
+        self.button_group.buttons()[0].setChecked(True)
+
+        self.sidebar_layout.addWidget(container, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # self.sidebar_layout.addStretch()
+
+        self.sidebar.setFixedHeight(self.SIDEBAR_HEIGHT)
+        self.sidebar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
 
 class ToolkitPage(QWidget):
     def __init__(self):
