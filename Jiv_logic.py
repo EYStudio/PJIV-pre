@@ -410,14 +410,6 @@ class JIVLogic:
         else:
             raise RuntimeError("Unable to obtain the latest version information")
 
-        # WILL BE DELETE IN NEXT VERSION
-        # tags_resp = requests.get(tags_url)
-        # if tags_resp.status_code == 200:
-        #     tags_data = tags_resp.json()
-        #     if tags_data:
-        #         return tags_data[0]["name"].lstrip("v")
-        # raise Exception("No release or tag")
-
     def check_update(self):
         """
         whether the latest version

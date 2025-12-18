@@ -127,21 +127,6 @@ class BaseAdapterInterface:
         raise NotImplementedError("Subclasses must implement run_task()")
 
 
-# WILL BE DELETED IN v0.1a3
-# class BaseAdapterInterface(ABC):
-#     @abstractmethod
-#     def start(self):
-#         raise NotImplementedError("Subclasses must implement start()")
-#
-#     @abstractmethod
-#     def stop(self):
-#         raise NotImplementedError("Subclasses must implement stop()")
-#
-#     @abstractmethod
-#     def run_task(self):
-#         raise NotImplementedError("Subclasses must implement run_task()")
-
-
 class MonitorAdapter(QObject, BaseAdapterInterface):
     changed = Signal(bool)
 
