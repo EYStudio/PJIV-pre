@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
 
     def initialization_window(self):
         self.setWindowTitle("Jiv test")
-        self.setMinimumSize(360, 480)
+        self.setMinimumSize(366, 488)
         self.resize(366, 488)
 
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
@@ -38,6 +38,7 @@ class MainWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.adapter = None
+        self.live_frame = None
 
         self.TASKBAR_BTN_HEIGHT = 32
         self.TASKBAR_BTN_WIDTH = int(self.TASKBAR_BTN_HEIGHT * 2)
@@ -47,6 +48,7 @@ class MainWidget(QWidget):
 
         self.sidebar = self.sidebar_layout = None
         self.sidebar_tabs = self.sidebar_button_group = None
+
         self.pages = None
         self.toolkit_page = self.about_page = self.settings_page = self.update_page = None
 
@@ -225,7 +227,7 @@ class ToolkitPage(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setContentsMargins(3, 3, 3, 3)
         main_layout.setSpacing(5)
 
         self.label_studentmain_state = QLabel()
@@ -285,7 +287,7 @@ class ToolkitPage(QWidget):
         self.ui_change.connect(self.signal_handler)
 
     def signal_handler(self, name, value):
-        print(f'Signal in toolkit page: {name}, {value}')
+        # print(f'Signal in toolkit page: {name}, {value}')
         match name:
             case 'MonitorAdapter':
                 self.set_studentmain_state(value)
@@ -355,7 +357,7 @@ class PageUpdating(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setContentsMargins(3, 3, 3, 3)
         main_layout.setSpacing(5)
 
         self.updating_label = QLabel()
@@ -363,9 +365,10 @@ class PageUpdating(QWidget):
         self.updating_label.setText('Page Updating')
         self.updating_label.setStyleSheet("""
                                         background-color: #efefef; 
-                                        border-radius: 10px;
+                                        /* border-radius: 10px; */
                                         font-size: 24px;
-                                        border: 3px solid #cccccc;
+                                        /* border: 3px solid #cccccc; */
+                                        /* border: 1px solid #bbbbbb; */
                                         color: green; 
                                         font-weight: bold; 
                                         """)
