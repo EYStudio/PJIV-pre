@@ -25,7 +25,7 @@ class MainWindow(QMainWindow):
     def initialization_window(self):
         self.setWindowTitle("Jiv test")
         self.setMinimumSize(360, 480)
-        self.resize(360, 480)
+        self.resize(366, 488)
 
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
 
@@ -46,7 +46,7 @@ class MainWidget(QWidget):
         self.SIDEBAR_HEIGHT = self.TASKBAR_BTN_HEIGHT + self.SPACING * 2  # Fixed height
 
         self.sidebar = self.sidebar_layout = None
-        self.tabs = self.button_group = None
+        self.sidebar_tabs = self.sidebar_button_group = None
         self.pages = None
         self.toolkit_page = self.about_page = self.settings_page = self.update_page = None
 
@@ -54,8 +54,8 @@ class MainWidget(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(5, 4, 5, 5)
+        main_layout.setSpacing(2)
 
         # Sidebar
         self.sidebar = QWidget()
@@ -64,15 +64,15 @@ class MainWidget(QWidget):
         # self.sidebar_layout.setSpacing(self.SPACING)
         # self.sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.tabs = [
+        self.sidebar_tabs = [
             "Tools",
             "Settings",
             "Updates",
             "Info"
         ]
 
-        self.button_group = QButtonGroup(self)
-        self.button_group.setExclusive(True)
+        self.sidebar_button_group = QButtonGroup(self)
+        self.sidebar_button_group.setExclusive(True)
 
         base_btn_style = f"""
             QPushButton {{
@@ -93,27 +93,27 @@ class MainWidget(QWidget):
             }}
         """
 
-        container = QWidget()
-        container_layout = QHBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(self.SPACING)
+        sidebar_container = QWidget()
+        sidebar_container_layout = QHBoxLayout(sidebar_container)
+        sidebar_container_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_container_layout.setSpacing(self.SPACING)
 
-        container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        container_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        sidebar_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sidebar_container_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
 
-        for i, name in enumerate(self.tabs):
+        for index, name in enumerate(self.sidebar_tabs):
             btn = QPushButton(name)
             btn.setFixedSize(self.TASKBAR_BTN_WIDTH, self.TASKBAR_BTN_HEIGHT)
             btn.setCheckable(True)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(base_btn_style)
             btn.setToolTip(name)
-            self.button_group.addButton(btn, i)
-            container_layout.addWidget(btn)
+            self.sidebar_button_group.addButton(btn, index)
+            sidebar_container_layout.addWidget(btn)
 
-        self.button_group.buttons()[0].setChecked(True)
+        self.sidebar_button_group.buttons()[0].setChecked(True)
 
-        self.sidebar_layout.addWidget(container, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.sidebar_layout.addWidget(sidebar_container, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Issue in placing sidebar buttons in center
         # self.sidebar_layout.addStretch()
@@ -122,11 +122,34 @@ class MainWidget(QWidget):
         self.sidebar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setStyleSheet("""
-            #sidebar {
-                border-bottom: 1px solid #cccccc;
+        # self.sidebar.setStyleSheet("""
+        #     #sidebar {
+        #         border-bottom: 1px solid #cccccc;
+        #     }
+        # """)
+        # Test space occupied
+        # self.sidebar.setStyleSheet("""
+        #     #sidebar {
+        #         border: 1px solid #aaaaaa;
+        #     }
+        # """)
+
+        self.live_frame = QWidget()
+        self.live_frame.setObjectName("live_frame")
+
+        self.live_frame.setStyleSheet("""
+            #live_frame {
+                background-color: #eeeeee; 
+                border-radius: 10px;
+                font-size: 24px;
+                border: 4px solid #cccccc;
+                color: #455A64;   
             }
         """)
+
+        live_frame_layout = QVBoxLayout(self.live_frame)
+        live_frame_layout.setContentsMargins(5, 5, 5, 5)
+        live_frame_layout.setSpacing(5)
 
         # Stack pages
         self.pages = QStackedWidget()
@@ -139,10 +162,12 @@ class MainWidget(QWidget):
         self.update_page = PageUpdating()
         self.pages.addWidget(self.update_page)
 
-        self.button_group.idClicked.connect(self.pages.setCurrentIndex)
+        self.sidebar_button_group.idClicked.connect(self.pages.setCurrentIndex)
+
+        live_frame_layout.addWidget(self.pages)
 
         main_layout.addWidget(self.sidebar)
-        main_layout.addWidget(self.pages, 1)
+        main_layout.addWidget(self.live_frame, 1)
 
         self.setLayout(main_layout)
 
@@ -157,8 +182,32 @@ class MainWidget(QWidget):
         match name:
             case 'MonitorAdapter':
                 self.toolkit_page.ui_change.emit(name, value)
+                self.live_frame_change(value)
             case 'SuspendMonitorAdapter':
                 self.toolkit_page.ui_change.emit(name, value)
+
+    def live_frame_change(self, studentmain_running_state):
+        if studentmain_running_state:
+            self.live_frame.setStyleSheet("""
+                #live_frame {
+                    background-color: #eeeeee; 
+                    border-radius: 10px;
+                    font-size: 24px;
+                    /*border: 4px solid #E66926; */
+                    border: 4px solid #E6A56E;
+                    color: #455A64;   
+                }
+            """)
+        else:
+            self.live_frame.setStyleSheet("""
+                #live_frame {
+                    background-color: #eeeeee; 
+                    border-radius: 10px;
+                    font-size: 24px;
+                    border: 4px solid #3DC766;
+                    color: #455A64;   
+                }
+            """)
 
 
 class ToolkitPage(QWidget):
