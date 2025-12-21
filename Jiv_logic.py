@@ -19,6 +19,8 @@ import win32gui_struct
 import win32process
 from packaging import version
 
+from Jiv_enmus import UpdateState
+
 
 class JIVLogic:
     def __init__(self, config):
@@ -417,22 +419,28 @@ class JIVLogic:
         :return: Latest version string if update is available, else None.
         """
         current_version = self.get_current_version()
-        latest_version = None
         try:
             latest_version = self.get_latest_version()
         except RuntimeError as err:
             print(err)
+            return UpdateState.ERROR, str(err)
+        except requests.exceptions.SSLError:
+            print('requests.exceptions.SSLError')
+            return UpdateState.ERROR, 'requests.exceptions.SSLError'
+        except Exception as err:
+            print(f'An error occurred: {err}')
+            return UpdateState.ERROR, str(err)
 
         if not latest_version:
-            return None
+            return UpdateState.NOT_FOUND, None
 
         current = version.parse(current_version)
         latest = version.parse(latest_version)
 
         if latest > current:
-            return latest_version
+            return UpdateState.FIND_LATEST, latest_version
         else:
-            return None
+            return UpdateState.IS_LATEST, current_version
 
     def top_taskmgr(self):
         taskmgr_name_chs = {
