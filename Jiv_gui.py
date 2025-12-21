@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QMainWindow, QWidget, QLabel, QPushButton, QGridLayout, QVBoxLayout, QHBoxLayout, \
     QSizePolicy, QStackedWidget, QLayout, QButtonGroup
 
-from Jiv_enmus import SuspendState
+from Jiv_enmus import SuspendState, UpdateState
 
 
 class MainWindow(QMainWindow):
@@ -369,6 +369,7 @@ class UpdatePage(QWidget):
         main_layout.setSpacing(5)
 
         self.update_state_label = QLabel()
+        self.update_state_label.setWordWrap(True)
 
         self.update_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.update_state_label.setStyleSheet("""
@@ -425,13 +426,23 @@ class UpdatePage(QWidget):
         self.current_version = self.adapter.get_current_version()
 
     def get_update(self):
+        self.update_state_label.setText(f'Getting updates')
+
         self.adapter.get_update()
 
-    def update_update_label(self, state):
-        if state is not None:
-            self.update_state_label.setText(state)
+    def update_update_label(self, state_package):
+        state, content = state_package
+
+        if state == UpdateState.FIND_LATEST:
+            self.update_state_label.setText(f'A new version is available: {content}')
+        elif state == UpdateState.IS_LATEST:
+            self.update_state_label.setText('You are already using the latest version')
+        elif state == UpdateState.NOT_FOUND:
+            self.update_state_label.setText('No updates found')
+        elif state == UpdateState.ERROR:
+            self.update_state_label.setText('An error has occurred while checking for updates.')
         else:
-            self.update_state_label.setText('update not found')
+            self.update_state_label.setText("Unexpected state. Please contact the developers.")
 
 
 class PageUpdating(QWidget):
