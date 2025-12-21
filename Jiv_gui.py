@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QMainWindow, QWidget, QLabel, QPushButton, QGridLayout, QVBoxLayout, QHBoxLayout, \
     QSizePolicy, QStackedWidget, QLayout, QButtonGroup
 
-from Jiv_enmus import SuspendState
+from Jiv_enmus import SuspendState, UpdateState
 
 
 class MainWindow(QMainWindow):
@@ -24,8 +24,8 @@ class MainWindow(QMainWindow):
 
     def initialization_window(self):
         self.setWindowTitle("Jiv test")
-        self.setMinimumSize(360, 480)
-        self.resize(360, 480)
+        self.setMinimumSize(366, 488)
+        self.resize(366, 488)
 
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
 
@@ -38,15 +38,17 @@ class MainWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.adapter = None
+        self.live_frame = None
 
-        self.BTN_HEIGHT = 32
-        self.BTN_WIDTH = int(self.BTN_HEIGHT * 2)
+        self.TASKBAR_BTN_HEIGHT = 32
+        self.TASKBAR_BTN_WIDTH = int(self.TASKBAR_BTN_HEIGHT * 2)
         self.SPACING = 4
 
-        self.SIDEBAR_HEIGHT = self.BTN_HEIGHT + self.SPACING * 2  # Fixed height
+        self.SIDEBAR_HEIGHT = self.TASKBAR_BTN_HEIGHT + self.SPACING * 2  # Fixed height
 
         self.sidebar = self.sidebar_layout = None
-        self.tabs = self.button_group = None
+        self.sidebar_tabs = self.sidebar_button_group = None
+
         self.pages = None
         self.toolkit_page = self.about_page = self.settings_page = self.update_page = None
 
@@ -54,8 +56,8 @@ class MainWidget(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(5, 4, 5, 5)
+        main_layout.setSpacing(2)
 
         # Sidebar
         self.sidebar = QWidget()
@@ -64,20 +66,20 @@ class MainWidget(QWidget):
         # self.sidebar_layout.setSpacing(self.SPACING)
         # self.sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.tabs = [
+        self.sidebar_tabs = [
             "Tools",
             "Settings",
             "Updates",
             "Info"
         ]
 
-        self.button_group = QButtonGroup(self)
-        self.button_group.setExclusive(True)
+        self.sidebar_button_group = QButtonGroup(self)
+        self.sidebar_button_group.setExclusive(True)
 
         base_btn_style = f"""
             QPushButton {{
                 background-color: #e6e6e6;
-                border-radius: {self.BTN_HEIGHT // 4}px; 
+                border-radius: {self.TASKBAR_BTN_HEIGHT // 4}px; 
                 padding: 0px;
                 font-weight: bold; 
             }}
@@ -93,27 +95,27 @@ class MainWidget(QWidget):
             }}
         """
 
-        container = QWidget()
-        container_layout = QHBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(self.SPACING)
+        sidebar_container = QWidget()
+        sidebar_container_layout = QHBoxLayout(sidebar_container)
+        sidebar_container_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_container_layout.setSpacing(self.SPACING)
 
-        container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        container_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        sidebar_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sidebar_container_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
 
-        for i, name in enumerate(self.tabs):
+        for index, name in enumerate(self.sidebar_tabs):
             btn = QPushButton(name)
-            btn.setFixedSize(self.BTN_WIDTH, self.BTN_HEIGHT)
+            btn.setFixedSize(self.TASKBAR_BTN_WIDTH, self.TASKBAR_BTN_HEIGHT)
             btn.setCheckable(True)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(base_btn_style)
             btn.setToolTip(name)
-            self.button_group.addButton(btn, i)
-            container_layout.addWidget(btn)
+            self.sidebar_button_group.addButton(btn, index)
+            sidebar_container_layout.addWidget(btn)
 
-        self.button_group.buttons()[0].setChecked(True)
+        self.sidebar_button_group.buttons()[0].setChecked(True)
 
-        self.sidebar_layout.addWidget(container, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.sidebar_layout.addWidget(sidebar_container, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Issue in placing sidebar buttons in center
         # self.sidebar_layout.addStretch()
@@ -122,11 +124,34 @@ class MainWidget(QWidget):
         self.sidebar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setStyleSheet("""
-            #sidebar {
-                border-bottom: 1px solid #cccccc;
+        # self.sidebar.setStyleSheet("""
+        #     #sidebar {
+        #         border-bottom: 1px solid #cccccc;
+        #     }
+        # """)
+        # Test space occupied
+        # self.sidebar.setStyleSheet("""
+        #     #sidebar {
+        #         border: 1px solid #aaaaaa;
+        #     }
+        # """)
+
+        self.live_frame = QWidget()
+        self.live_frame.setObjectName("live_frame")
+
+        self.live_frame.setStyleSheet("""
+            #live_frame {
+                background-color: #eeeeee; 
+                border-radius: 10px;
+                font-size: 24px;
+                border: 4px solid #cccccc;
+                color: #455A64;   
             }
         """)
+
+        live_frame_layout = QVBoxLayout(self.live_frame)
+        live_frame_layout.setContentsMargins(5, 5, 5, 5)
+        live_frame_layout.setSpacing(5)
 
         # Stack pages
         self.pages = QStackedWidget()
@@ -134,24 +159,65 @@ class MainWidget(QWidget):
         self.pages.addWidget(self.toolkit_page)
         self.settings_page = PageUpdating()
         self.pages.addWidget(self.settings_page)
+        self.update_page = UpdatePage()
+        self.pages.addWidget(self.update_page)
         self.about_page = PageUpdating()
         self.pages.addWidget(self.about_page)
-        self.update_page = PageUpdating()
-        self.pages.addWidget(self.update_page)
 
-        self.button_group.idClicked.connect(self.pages.setCurrentIndex)
+        self.sidebar_button_group.idClicked.connect(self.pages.setCurrentIndex)
+
+        live_frame_layout.addWidget(self.pages)
 
         main_layout.addWidget(self.sidebar)
-        main_layout.addWidget(self.pages, 1)
+        main_layout.addWidget(self.live_frame, 1)
 
         self.setLayout(main_layout)
 
     def adapter_signal_connect(self, adapter):
         self.adapter = adapter
-        self.toolkit_page.adapter_signal_connect(adapter)
+        self.adapter.ui_change.connect(self.signal_handler)
+
+        self.toolkit_page.set_adapter(self.adapter)
+        self.update_page.set_adapter(self.adapter)
+
+    def signal_handler(self, name, value):
+        print(f'Signal in main widget: {name}, {value}')
+        match name:
+            case 'MonitorAdapter':
+                self.toolkit_page.ui_change.emit(name, value)
+                self.live_frame_change(value)
+            case 'SuspendMonitorAdapter':
+                self.toolkit_page.ui_change.emit(name, value)
+            case 'UpdateAdapter':
+                self.update_page.ui_change.emit(name, value)
+
+    def live_frame_change(self, studentmain_running_state):
+        if studentmain_running_state:
+            self.live_frame.setStyleSheet("""
+                #live_frame {
+                    background-color: #eeeeee; 
+                    border-radius: 10px;
+                    font-size: 24px;
+                    /*border: 4px solid #E66926; */
+                    border: 4px solid #E6A56E;
+                    color: #455A64;   
+                }
+            """)
+        else:
+            self.live_frame.setStyleSheet("""
+                #live_frame {
+                    background-color: #eeeeee; 
+                    border-radius: 10px;
+                    font-size: 24px;
+                    border: 4px solid #3DC766;
+                    color: #455A64;   
+                }
+            """)
 
 
 class ToolkitPage(QWidget):
+    ui_change = Signal(str, object)
+
     def __init__(self):
         super().__init__()
         self.studentmain_state = None
@@ -160,9 +226,11 @@ class ToolkitPage(QWidget):
         self.adapter = None
         self.init_ui()
 
+        self.signal_connect()
+
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setContentsMargins(3, 3, 3, 3)
         main_layout.setSpacing(5)
 
         self.label_studentmain_state = QLabel()
@@ -218,17 +286,19 @@ class ToolkitPage(QWidget):
 
         self.setLayout(main_layout)
 
-    def adapter_signal_connect(self, adapter):
-        self.adapter = adapter
-        self.adapter.ui_change.connect(self.signal_handler)
+    def signal_connect(self):
+        self.ui_change.connect(self.signal_handler)
 
     def signal_handler(self, name, value):
-        print(f'Signal: {name}, {value}')
+        # print(f'Signal in toolkit page: {name}, {value}')
         match name:
             case 'MonitorAdapter':
                 self.set_studentmain_state(value)
             case 'SuspendMonitorAdapter':
                 self.set_studentmain_suspend_state(value)
+
+    def set_adapter(self, adapter):
+        self.adapter = adapter
 
     def set_studentmain_state(self, state):
         status = "not running" if not state else "running"
@@ -281,6 +351,100 @@ class ToolkitPage(QWidget):
         self.run_taskmgr_btn.setEnabled(True)
 
 
+class UpdatePage(QWidget):
+    ui_change = Signal(str, object)
+
+    def __init__(self):
+        super().__init__()
+        self.studentmain_state = None
+        self.update_state_label = None
+        self.adapter = None
+        self.init_ui()
+
+        self.signal_connect()
+
+    def init_ui(self):
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(3, 3, 3, 3)
+        main_layout.setSpacing(5)
+
+        self.update_state_label = QLabel()
+        self.update_state_label.setWordWrap(True)
+
+        self.update_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.update_state_label.setStyleSheet("""
+                                    background-color: #eeeeee; 
+                                    border-radius: 10px;
+                                    font-size: 24px;
+                                    border: 3px solid #cccccc;
+                                    color: #455A64;   
+                                    """)
+        self.update_state_label.setText(f'Getting updates')
+        # self.update_state_label.setFixedHeight(100)
+
+        button_layout = QGridLayout()
+
+        self.get_update_btn = QPushButton("Get updates")
+        self.get_update_btn.clicked.connect(self.get_update)
+
+        for i, btn in enumerate([self.get_update_btn]):
+            btn.setMinimumHeight(50)
+            button_layout.addWidget(btn, i // 2, i % 2)
+            btn.setStyleSheet("""
+                        QPushButton {
+                            font: 20px;
+                            border: 2px solid #cccccc; 
+                            border-radius: 8px;        
+                            background-color: #eeeeee; 
+                            color: #333;               
+                        }
+                        QPushButton:hover {
+                            background-color: #dedede; 
+                        }
+                        QPushButton:pressed {
+                            background-color: #dddddd; 
+                        }
+                    """)
+
+        main_layout.addWidget(self.update_state_label)
+
+        main_layout.addLayout(button_layout)
+
+        self.setLayout(main_layout)
+
+    def signal_connect(self):
+        self.ui_change.connect(self.signal_handler)
+
+    def signal_handler(self, name, value):
+        # print(f'Signal in toolkit page: {name}, {value}')
+        match name:
+            case 'UpdateAdapter':
+                self.update_update_label(value)
+
+    def set_adapter(self, adapter):
+        self.adapter = adapter
+        self.current_version = self.adapter.get_current_version()
+
+    def get_update(self):
+        self.update_state_label.setText(f'Getting updates')
+
+        self.adapter.get_update()
+
+    def update_update_label(self, state_package):
+        state, content = state_package
+
+        if state == UpdateState.FIND_LATEST:
+            self.update_state_label.setText(f'A new version is available: {content}')
+        elif state == UpdateState.IS_LATEST:
+            self.update_state_label.setText('You are already using the latest version')
+        elif state == UpdateState.NOT_FOUND:
+            self.update_state_label.setText('No updates found')
+        elif state == UpdateState.ERROR:
+            self.update_state_label.setText('An error has occurred while checking for updates.')
+        else:
+            self.update_state_label.setText("Unexpected state. Please contact the developers.")
+
+
 class PageUpdating(QWidget):
     def __init__(self):
         super().__init__()
@@ -290,7 +454,7 @@ class PageUpdating(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setContentsMargins(3, 3, 3, 3)
         main_layout.setSpacing(5)
 
         self.updating_label = QLabel()
@@ -298,9 +462,10 @@ class PageUpdating(QWidget):
         self.updating_label.setText('Page Updating')
         self.updating_label.setStyleSheet("""
                                         background-color: #efefef; 
-                                        border-radius: 10px;
+                                        /* border-radius: 10px; */
                                         font-size: 24px;
-                                        border: 3px solid #cccccc;
+                                        /* border: 3px solid #cccccc; */
+                                        /* border: 1px solid #bbbbbb; */
                                         color: green; 
                                         font-weight: bold; 
                                         """)

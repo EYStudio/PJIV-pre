@@ -20,6 +20,7 @@ class AdapterManager(QObject):
         self.lifelong_objects = {}
 
         self.terminate_adapter = self.start_adapter = self.suspend_studentmain_adapter = self.run_taskmgr_adapter = None
+        self.update_adapter = None
 
         self.init_workers()
         self.start_all()
@@ -29,6 +30,9 @@ class AdapterManager(QObject):
         self.lifelong_adapters.append(SuspendMonitorAdapter(self.logic))
         # self.lifelong_adapters.append(DatabaseAdapter(logic, 2000))
         # self.lifelong_adapters.append(NetworkAdapter(logic, 5000))
+
+        self.update_adapter = UpdateAdapter(self.logic)
+        self.lifelong_adapters.append(self.update_adapter)
 
         self.terminate_adapter = TerminateAdapter(self.logic)
         self.suspend_studentmain_adapter = SuspendStudentmainAdapter(self.logic)
@@ -43,7 +47,7 @@ class AdapterManager(QObject):
 
         thread.started.connect(self.run_taskmgr_adapter.start)
 
-        self.run_taskmgr_adapter.changed.connect(lambda result, w=self.run_taskmgr_adapter:
+        self.run_taskmgr_adapter.change.connect(lambda result, w=self.run_taskmgr_adapter:
                                                  self.ui_change.emit(type(w).__name__, result))
         self.run_taskmgr_adapter.request_top.connect(self.logic.top_taskmgr)
         # self.run_taskmgr_adapter.request_top.connect(lambda: print('request_top received'))
@@ -60,7 +64,7 @@ class AdapterManager(QObject):
 
             thread.started.connect(adapter.start)
             # Wrap with lambda and send the adapter class name and result together
-            adapter.changed.connect(lambda result, w=adapter:
+            adapter.change.connect(lambda result, w=adapter:
                                     self.ui_change.emit(type(w).__name__, result))
 
             self.lifelong_objects[adapter] = thread
@@ -115,6 +119,16 @@ class AdapterManager(QObject):
         #     Qt.QueuedConnection
         # )
 
+    def get_update(self):
+        if self.update_adapter.is_running():
+            print("update adapter already running")
+            return
+
+        self.update_adapter.trigger_run.emit()
+
+    def get_current_version(self):
+        self.logic.get_current_version()
+
 
 class BaseAdapterInterface:
     def start(self):
@@ -128,13 +142,13 @@ class BaseAdapterInterface:
 
 
 class MonitorAdapter(QObject, BaseAdapterInterface):
-    changed = Signal(bool)
+    change = Signal(bool)
 
     def __init__(self, logic):
         super().__init__()
         self.logic = logic
         self.timer = QTimer(self)
-        self.timer.setInterval(600)
+        self.timer.setInterval(500)
         self.timer.timeout.connect(self.run_task)
         self.last_result = None
 
@@ -149,20 +163,20 @@ class MonitorAdapter(QObject, BaseAdapterInterface):
         state = self.check_state()
         if state is not self.last_result:
             self.last_result = state
-            self.changed.emit(state)
+            self.change.emit(state)
 
     def check_state(self):
         return self.logic.get_process_state(Jiv_build_config.E_CLASSROOM_NAME)
 
 
 class SuspendMonitorAdapter(QObject, BaseAdapterInterface):
-    changed = Signal(SuspendState)
+    change = Signal(SuspendState)
 
     def __init__(self, logic):
         super().__init__()
         self.logic = logic
         self.timer = QTimer(self)
-        self.timer.setInterval(600)
+        self.timer.setInterval(500)
         self.timer.timeout.connect(self.run_task)
         self.last_result = None
 
@@ -177,7 +191,7 @@ class SuspendMonitorAdapter(QObject, BaseAdapterInterface):
         state = self.check_state()
         if state is not self.last_result:
             self.last_result = state
-            self.changed.emit(state)
+            self.change.emit(state)
 
     def check_state(self):
         """
@@ -194,7 +208,7 @@ class SuspendMonitorAdapter(QObject, BaseAdapterInterface):
 
 class RunTaskmgrAdapter(QObject):
     trigger_run = Signal()
-    changed = Signal()
+    change = Signal()
     request_top = Signal()
 
     def __init__(self, logic):
@@ -242,7 +256,8 @@ class RunTaskmgrAdapter(QObject):
 
 
 class UpdateAdapter(QObject, BaseAdapterInterface):
-    ui_change = Signal()
+    change = Signal(object)
+    trigger_run = Signal()
 
     def __init__(self, logic):
         super().__init__()
@@ -251,17 +266,21 @@ class UpdateAdapter(QObject, BaseAdapterInterface):
 
     def start(self):
         self.running = False
+        self.trigger_run.connect(self.run_task)
+
+        self.run_task()
 
     def stop(self):
         self.running = False
 
     def run_task(self):
-        if self.running:
+        if self.is_running():
             print('another getting update is running, exit')
             return
         self.running = True
-        ver = self.logic.check_update()
-        self.ui_change.emit(ver)
+        state, content = self.logic.check_update()
+
+        self.change.emit((state, content))
         self.stop()
 
     def is_running(self):
