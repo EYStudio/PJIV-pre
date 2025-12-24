@@ -109,7 +109,7 @@ class AdapterManager(QObject):
         self.update_adapter.trigger_run.emit()
 
     def get_current_version(self):
-        self.logic.get_current_version()
+        return self.logic.get_current_version()
 
 
 class BaseAdapterInterface:
