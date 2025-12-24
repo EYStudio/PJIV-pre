@@ -348,6 +348,8 @@ class UpdatePage(QWidget):
         self.update_state_label = None
         self.get_update_btn = None
         self.adapter = None
+        self.current_version = None
+
         self.init_ui()
 
         self.signal_connect()
@@ -356,6 +358,20 @@ class UpdatePage(QWidget):
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(3, 3, 3, 3)
         main_layout.setSpacing(5)
+
+        self.current_version_label = QLabel()
+        self.current_version_label.setWordWrap(True)
+
+        self.current_version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.current_version_label.setStyleSheet("""
+                                    background-color: #eeeeee; 
+                                    border-radius: 10px;
+                                    font-size: 24px;
+                                    border: 3px solid #cccccc;
+                                    color: #455A64;   
+                                    """)
+        self.current_version_label.setText(f'Current version: N / a')
+        self.current_version_label.setFixedHeight(50)
 
         self.update_state_label = QLabel()
         self.update_state_label.setWordWrap(True)
@@ -395,6 +411,7 @@ class UpdatePage(QWidget):
                         }
                     """)
 
+        main_layout.addWidget(self.current_version_label)
         main_layout.addWidget(self.update_state_label)
 
         main_layout.addLayout(button_layout)
@@ -412,6 +429,9 @@ class UpdatePage(QWidget):
 
     def set_adapter(self, adapter):
         self.adapter = adapter
+
+        self.current_version = self.adapter.get_current_version()
+        self.current_version_label.setText(f'Current version: {self.current_version}')
 
     def get_update(self):
         self.update_state_label.setText(f'Getting updates')
