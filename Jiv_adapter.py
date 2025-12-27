@@ -187,7 +187,10 @@ class SuspendMonitorAdapter(QObject, BaseAdapterInterface):
         pids = self.logic.get_pid_from_process_name(Jiv_build_config.E_CLASSROOM_PROGRAM_NAME)
         if pids is None:
             return SuspendState.NOT_FOUND
-        if self.logic.is_suspended(pids):
+        # Same logic as the earlier method, may cause bug
+        # If a process's name is studentmain, but it's not the real one, this can suspend the wrong process
+        pid = pids[0]
+        if self.logic.is_suspended(pid):
             return SuspendState.SUSPENDED
         else:
             return SuspendState.RUNNING
@@ -312,17 +315,13 @@ class SuspendStudentmainAdapter:
 
         if pids is None:
             print(f'{Jiv_build_config.E_CLASSROOM_PROGRAM_NAME} not found')
-            return
 
-        # Same logic as the earlier method, may cause bug
-        # If a process's name is studentmain, but it's not the real one, this can suspend the wrong process
-        pid = pids[0]
-
-        suspend_state = self.logic.is_suspended(pid)
-        if suspend_state:
-            self.resume(pid)
-        else:
-            self.suspend(pid)
+        for pid in pids:
+            suspend_state = self.logic.is_suspended(pid)
+            if suspend_state:
+                self.resume(pid)
+            else:
+                self.suspend(pid)
 
     def suspend(self, pid):
         self.logic.suspend_process(pid)
