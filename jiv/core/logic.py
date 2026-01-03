@@ -14,6 +14,7 @@ import requests
 import win32api
 import win32com.client
 import win32con
+# noinspection PyPackageRequirements
 import win32gui
 import win32gui_struct
 import win32process
